@@ -1,10 +1,10 @@
 #version 400 core
 
-in vec4 pass_position;
+smooth in float depth;
 
 out vec4 color;
 
 void main()
 {
-	color = pass_position;
+	color = vec4(depth, depth, depth, 1);
 }

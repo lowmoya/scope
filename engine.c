@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <GL/glew.h>
@@ -23,7 +24,7 @@ char *file_load(char *path)
 	}
 
 	fseek(file, 0, SEEK_END);
-	length = ftell(file);
+	length = ftell(file) + 1;
 	rewind(file);
 
 	contents = malloc(length);
@@ -31,6 +32,7 @@ char *file_load(char *path)
 	{
 		contents[i] = fgetc(file);
 	}
+	contents[length - 1] = '\0';
 
 	fclose(file);
 
@@ -125,20 +127,22 @@ int main()
 
 	Position vertices[] =
 	{
-		{ 30,  30,  -30},
-		{-30, -30,  -30},
-		{-30,  30,  -30},
-		{ 30,  30,  -30},
-		{ 30, -30,  -30},
-		{-30, -30,  -30},
+		{ 7,  7,  20},
+		{-7, -7,  10},
+		{-7,  7,  20},
+		{ 7,  7,  20},
+		{ 7, -7,  10},
+		{-7, -7,  10},
 
-		{ 30, -30,   30},
-		{-30, -30,  -30},
-		{-30, -30,   30},
-		{ 30, -30,   30},
-		{ 30, -30,  -30},
-		{-30, -30,  -30},
+		/*{ 30, -30,  60},
+		{-30, -30,  0},
+		{-30, -30,  60},
+		{ 30, -30,  60},
+		{ 30, -30,  0},
+		{-30, -30,  0},*/
 	};
+
+	/* work on ibo */
 
 	unsigned int vao, vbo;
 	glGenVertexArrays(1, &vao);
@@ -146,40 +150,70 @@ int main()
 
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(Position), vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(Position), vertices, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
 	unsigned int program_handle = program_create("resources/basic.vert", "resources/basic.frag");
 	glUseProgram(program_handle);
 
-#define ASPECT 4/3
-#define TF 1
-#define FAR 100
-#define NEAR -1
+#define FAR 100.0
+#define NEAR 0.0
+#define ASPECT (4.0/3.0)
+#define THF 1
+#define PI 3.1415
 
-	float perspective[] = {
-		1/(ASPECT * TF), 0, 0, 0,
-		0, 1/(TF), 0, 0,
-		0, 0, -(FAR + NEAR)/(FAR - NEAR), -(2 * FAR * NEAR)/(FAR - NEAR),
-		0,   0, -1, 0
-	};
+	float perspective[16] = { 0.0 };
+	perspective[0 + (0 * 4)] = 1.0 / (ASPECT * THF);
+	perspective[1 + (1 * 4)] = 1.0 / THF;
+	perspective[2 + (2 * 4)] = 2.0 / (FAR-NEAR);
+	perspective[2 + (3 * 4)] = -(FAR + NEAR)/(FAR - NEAR);
+	perspective[3 + (2 * 4)] = 1.0;
+	perspective[3 + (3 * 4)] = -NEAR + 1.0;
 
-	float rotation[] = {
-		
+	float view[16] = { 0.0 };
+	view[0 + (0 * 4)] = 1.0;
+	view[1 + (1 * 4)] = 1.0;
+	view[2 + (2 * 4)] = 1.0;
+	view[3 + (3 * 4)] = 1.0;
 
-	int location = glGetUniformLocation(program_handle, "u_m_perspective");
-	glUniformMatrix4fv(location, 1, GL_FALSE, perspective);
+	/* Rotate on Z
+	view[0 + (0 * 4)] = cos(PI/4);
+	view[0 + (1 * 4)] = -sin(PI/4);
+	view[1 + (0 * 4)] = sin(PI/4);
+	view[1 + (1 * 4)] = cos(PI/4);
+	*/
+
+	int perspective_location = glGetUniformLocation(program_handle, "projection");
+	int view_location = glGetUniformLocation(program_handle, "view");
+	glUniformMatrix4fv(perspective_location, 1, GL_FALSE, perspective);
+	glUniformMatrix4fv(view_location, 1, GL_FALSE, view);
+
+	float rot_var = 0;
 
 	while (!glfwWindowShouldClose(window))
 	{
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		glDrawArrays(GL_TRIANGLES, 0, 12);
+	view[0 + (0 * 4)] = cos(PI * rot_var);
+	view[0 + (1 * 4)] = -sin(PI * rot_var);
+	view[1 + (0 * 4)] = sin(PI* rot_var);
+	view[1 + (1 * 4)] = cos(PI* rot_var);
+	/*	
+	view[1 + (1 * 4)] = cos(PI * rot_var);
+		view[1 + (2 * 4)] = -sin(PI * rot_var);
+		view[2 + (1 * 4)] = sin(PI * rot_var);
+		view[2 + (2 * 4)] = cos(PI * rot_var);
+		*/
+		glUniformMatrix4fv(view_location, 1, GL_FALSE, view);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		glfwSwapBuffers(window);
 
 		glfwPollEvents();
+		rot_var += ((glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+				- (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)) * 1.0/32.0;
+
 	}
 
 	glDeleteVertexArrays(1, &vao);

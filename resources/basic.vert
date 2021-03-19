@@ -2,12 +2,14 @@
 
 layout (location = 0) in vec3 position;
 
-out vec4 pass_position;
+smooth out float depth;
 
-uniform mat4 u_m_perspective;
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
 
 void main()
 {
-	pass_position = vec4(position, 1.0);
-	gl_Position = pass_position * u_m_perspective;
+	gl_Position = view * projection * vec4(position, 1);
+	depth = (gl_Position.z + 1) / 2;
 }
